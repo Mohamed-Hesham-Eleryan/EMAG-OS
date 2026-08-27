@@ -4,7 +4,7 @@
 
 ### An AI-powered operating system simulation running inside a browser.
 
-`Single HTML File` · `30,000+ Lines` · `~1.88 MB` · `Browser-Native`
+`Single HTML File` · `~30,000 Lines` · `~1.88 MB` · `Browser-Native`
 
 <br>
 
