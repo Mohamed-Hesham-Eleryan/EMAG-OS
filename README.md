@@ -4,11 +4,12 @@
 
 ### An AI-powered operating system simulation running inside a browser.
 
-`Single HTML File` · `~30,000 Lines` · `~1.88 MB` · `Browser-Native`
+`Single HTML File` · `30,000+ Lines` · `~1.94 MB` · `Browser-Native`
 
 <br>
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Launch_EMAG_OS-ff0000?style=for-the-badge)](https://mohamed-hesham-eleryan.github.io/EMAG-OS)
+[![Release](https://img.shields.io/github/v/release/Mohamed-Hesham-Eleryan/EMAG-OS?style=flat-square)](https://github.com/Mohamed-Hesham-Eleryan/EMAG-OS/releases)
 
 </div>
 
@@ -20,7 +21,7 @@ EMAG OS is an experimental browser-native operating environment built around a s
 
 > **How far can a browser be pushed when the goal is not to build a website, but to build an environment?**
 
-It looks like an operating system, behaves like an operating system, contains applications, a filesystem, a terminal, an AI agent, persistent user state, system configuration, tools, visual effects, and an internal world — yet the entire core environment lives inside a single HTML document.
+It looks like an operating system, behaves like an operating system, contains applications, a filesystem, a terminal, an AI agent, persistent user state, system configuration, tools, visual effects, media systems, and an internal world — yet the core environment lives inside a single HTML document.
 
 There is no traditional backend, no build pipeline, and no framework-driven application architecture.
 
@@ -32,38 +33,36 @@ And that constraint is part of the engineering challenge.
 
 ## The Experiment
 
-EMAG OS is approximately **30,000 lines of HTML, CSS, and JavaScript** contained in a single file of roughly **1.88 MB**.
+EMAG OS is approximately **30,000 lines of HTML, CSS, and JavaScript** contained in a single file of roughly **1.94 MB**.
 
-The objective was not simply to make a large HTML file.
+The objective was never simply to make a large HTML file.
 
 The objective was to make that file behave like a coherent software environment.
 
-Inside the same document are:
+Inside the same document are systems for:
 
-- a desktop environment
-- window management
-- an application system
-- persistent storage
+- desktop and window management
+- application launching and lifecycle
+- persistent browser storage
 - a virtual filesystem
 - authentication and sessions
 - a multi-mode terminal
 - an embedded Python runtime interface
-- a code editor
-- an AI chat interface
-- an agent/tool execution layer
-- OSINT-oriented tooling
+- a browser-based code environment
+- AI chat and agent execution
+- tool-assisted information retrieval
 - system configuration
 - media handling
-- custom wallpapers and themes
+- themes and wallpapers
 - cryptographic notebook functionality
 - real-time visual effects
 - an interactive 3D system identity
-- peer-to-peer communication experiments
-- EMAG's autonomous event and interaction systems
+- experimental peer-to-peer communication
+- system-level events and interactions
 
 The architecture is intentionally extreme:
 
-**one document → one environment → many systems.**
+**one document → one runtime → many systems.**
 
 ---
 
@@ -71,7 +70,7 @@ The architecture is intentionally extreme:
 
 EMAG OS is not a collection of disconnected UI components.
 
-It is organized as a collection of interacting subsystems sharing a common runtime and state layer.
+It is organized as a collection of interacting subsystems sharing runtime state, storage, and system-level interfaces.
 
 ```text
                          ┌─────────────────────┐
@@ -98,13 +97,12 @@ It is organized as a collection of interacting subsystems sharing a common runti
 The interesting part is the interaction between these systems.
 
 The AI is not isolated in a chat window.
-It can reason about the environment and interact with it through tools.
 
-The filesystem is not merely a mock UI.
-Applications and terminal commands operate against the same persistent virtual filesystem.
+The filesystem is not merely a visual mock.
 
-The desktop is not just visual decoration.
-The environment has state, identity, configuration, and behavior.
+The desktop is not simply decoration.
+
+Applications, terminal commands, widgets, configuration, storage, and AI capabilities participate in the same environment.
 
 ---
 
@@ -118,24 +116,25 @@ The AI layer supports two fundamentally different execution paths.
 Normal conversational requests can be sent directly to the configured AI provider.
 
 ### Agent Path
-Requests that require actions, searching, inspection, navigation, calculations, or other tools can enter a multi-step agent loop.
+Requests that require actions, searching, inspection, calculations, navigation, or other tools can enter a multi-step agent loop.
 
-The agent has access to a catalog of tools covering areas such as:
+The agent can work with tools covering areas such as:
 
 - web search
-- OSINT operations
+- information retrieval
+- OSINT-oriented operations
 - filesystem access
 - system information
 - calculations
 - Python execution
 - GitHub lookup
-- weather/data utilities
-- crypto/forex data
+- weather and data utilities
+- crypto and forex data
 - network-oriented utilities
-- external messaging integrations
+- external integrations
 - application control
 
-The agent can therefore move beyond:
+The architecture therefore moves beyond:
 
 ```text
 User → AI → Text
@@ -161,7 +160,7 @@ Reason Again
 Respond / Act
 ```
 
-The agent system also contains execution logging, request management, tool handling, and a controlled multi-step loop.
+The agent layer includes request management, execution logging, tool handling, and controlled multi-step execution.
 
 ---
 
@@ -184,9 +183,102 @@ It exposes familiar concepts such as:
 
 Files and directories are persisted rather than being recreated purely as visual elements.
 
-This gives applications and the terminal a shared storage model.
+Applications and terminal commands operate against the same underlying virtual filesystem.
 
-The environment can therefore maintain state between sessions instead of behaving like a stateless webpage.
+This allows the environment to maintain state between sessions instead of behaving like a stateless webpage.
+
+The filesystem is backed by IndexedDB through a structured storage layer.
+
+---
+
+## The Desktop
+
+The desktop is designed as an environment rather than a static canvas.
+
+The default interface in v8.64 uses a macOS-style Dock as the primary application launcher.
+
+The Dock provides:
+
+- pinned applications
+- customizable pinned-app selection
+- running-application indicators
+- minimize-on-click behavior
+- an all-applications launcher through the EMAG logo
+
+The classic taskbar remains available as an alternative interface mode.
+
+Desktop customization also controls:
+
+- Dock / Taskbar mode
+- pinned applications
+- desktop icon visibility
+- theme behavior
+- visual presentation
+
+Desktop icons are hidden by default in the current configuration, while applications remain accessible through the Dock and application launcher.
+
+---
+
+## Desktop Widgets
+
+EMAG OS includes a system-level widget framework designed around interactive desktop objects.
+
+Widgets can be:
+
+- dragged
+- resized
+- rotated
+- removed
+- restored
+- individually configured
+
+Long-press interaction exposes editing controls directly on the widget.
+
+The system currently includes several specialized widgets.
+
+### Clock
+The Clock can display:
+- day name
+- Gregorian date
+- Hijri date
+- time
+
+Its typography is independently customizable, including separate font treatment for day and date/time elements. Colors, alignment, and background behavior can also be configured.
+
+### Fastfetch
+EMAG's Fastfetch provides real browser and system-oriented information rather than simulated output.
+
+It can expose information such as:
+- browser
+- storage
+- runtime information
+- FPS
+- display information
+- system identity
+
+The widget adapts its presentation to the current theme and mobile layout.
+
+### CAVA
+CAVA is a real audio-reactive visualization layer.
+
+It can react to audio generated by the environment, including:
+- system TTS
+- interface sounds
+- NEXUS previews
+- media playback
+
+It includes a classic left-right mirrored visualization mode and does not rely on simulated waveform data.
+
+### Media Player
+The Media Player widget acts as a remote control surface for EMAG's real media environment.
+
+It can:
+- control playback
+- move between files in the same folder
+- play audio quietly in the background
+- remember the last played item
+
+The widget system also supports theme-following colors, per-part overrides, optional glass backgrounds, and per-widget reset behavior.
 
 ---
 
@@ -194,42 +286,40 @@ The environment can therefore maintain state between sessions instead of behavin
 
 EMAG includes its own terminal environment.
 
-It is not limited to a fake command prompt.
+It is designed to feel like a system interface rather than a decorative command prompt.
 
-The terminal exposes multiple execution modes:
+The terminal supports multiple execution modes:
 
 - **SHELL**
 - **AI**
 - **JS**
 - **PYTHON**
 
-The shell includes filesystem and system-style commands such as:
+The shell provides filesystem and system-style commands such as:
 
 `ls`, `cd`, `pwd`, `cat`, `mkdir`, `rm`, `cp`, `mv`, `find`, `touch`, `write`, `whoami`, `uname`, `ps`, `history`, `uptime`, `sysinfo`
 
-It also exposes utility commands for things such as hashing, Base64, UUID generation, calculations, JSON formatting, and fetching content.
+Utility operations include functionality for hashing, Base64, UUID generation, calculations, JSON formatting, and content retrieval.
 
-The terminal can also switch into:
+The terminal also includes:
 
-- **AI mode**
-- **JavaScript mode**
-- **Python mode**
+`fastfetch`, `cowsay`, `cava`
 
-Python execution is backed by Pyodide, allowing Python code to execute within the browser environment.
+Fastfetch provides animated system-oriented output and an ASCII-to-SVG logo transition.
+
+Python execution is backed by Pyodide, allowing Python code to execute directly inside the browser environment.
 
 ---
 
 ## Applications & Environment
 
-EMAG OS contains a collection of applications designed to make the environment feel like a small software platform rather than a landing page.
-
-Among its core systems are:
+EMAG OS contains a collection of applications and system interfaces designed to make the environment feel like a small software platform rather than a landing page.
 
 ### AI Interface
 The primary interface for communicating with EMAG and invoking its agent capabilities.
 
 ### Terminal
-A multi-mode command environment connected to the virtual filesystem and system APIs.
+A multi-mode command environment connected to the virtual filesystem and browser runtime.
 
 ### File Explorer
 A graphical interface over the same persistent virtual filesystem used by the terminal.
@@ -238,21 +328,50 @@ A graphical interface over the same persistent virtual filesystem used by the te
 A browser-based development environment with editor capabilities.
 
 ### Settings
-System-level customization including:
-
+System-level configuration including:
 - system identity
 - AI identity
 - user identity
 - custom system prompts
 - themes
-- wallpaper behavior
-- visual settings
+- wallpapers
+- font systems
 - AI provider configuration
 - voice behavior
 - environment behavior
+- desktop configuration
 
 ### Media Environment
 Browser-native handling for images, audio, video, and user-provided media.
+
+---
+
+## The Font System
+
+EMAG OS v8.64 introduces a dedicated system-wide typography layer.
+
+Instead of treating fonts as isolated application styling, typography is now part of the environment's customization system.
+
+Five built-in presets are provided:
+
+- System
+- Calm + Technical
+- Cyber
+- Minimal
+- Experimental
+
+The system uses real web fonts and caches loaded font resources through the existing library cache mechanism so previously loaded resources can remain available for offline use where browser caching permits.
+
+Approximately 320 hardcoded font references were retrofitted into theme-aware CSS variables.
+
+Terminal and ASCII rendering retain a dedicated monospace slot to preserve alignment and readability.
+
+Widgets can also override typography independently, including:
+- Clock day font
+- Clock date/time font
+- Fastfetch font
+
+The result is a typography system that can shift the entire environment from restrained and technical to cyberpunk-inspired or experimental without rewriting individual interfaces.
 
 ---
 
@@ -308,7 +427,7 @@ EMAG contains multiple layers of real-time visual behavior including:
 - corrupted-data overlays
 - animated HUD elements
 - reactive waveform rendering
-- an interactive system "Eye"
+- an interactive system Eye
 - physics-driven visual behavior
 
 These are not simply decorative CSS animations.
@@ -361,7 +480,7 @@ Agent Reasoning
 Result
 ```
 
-The system also maintains contextual information that can be passed between certain operations.
+The system can maintain contextual information between certain operations, allowing retrieved information to become part of subsequent agent reasoning.
 
 ---
 
@@ -404,13 +523,14 @@ Persistent state can include:
 - configuration
 - themes
 - wallpapers
+- widget configuration
 - notebook data
 - application state
 - AI configuration
 
 The virtual filesystem is backed by IndexedDB through a structured storage layer.
 
-This allows the environment to behave much more like a persistent application than a conventional static webpage.
+Settings and local state are designed to survive browser restarts where browser storage remains available.
 
 ---
 
@@ -429,9 +549,12 @@ For example:
 - Custom System Prompt
 - Theme
 - Wallpaper
+- Fonts
 - Voice
 - Visual Behavior
 - AI Provider
+- Desktop Layout
+- Widget Configuration
 
 This means the environment is not completely fixed at build time.
 
@@ -456,7 +579,51 @@ It includes mechanisms for:
 
 An EMAG instance can therefore participate in a small network of other instances rather than existing purely as an isolated webpage.
 
-This is one of the more experimental parts of the project.
+This remains one of the more experimental parts of the project.
+
+---
+
+## Release v8.64
+
+v8.64 represents a major interface and systems update.
+
+The release introduces the new Dock-based desktop experience, a complete widget framework, system-wide font customization, terminal improvements, and a collection of persistence and rendering fixes.
+
+### Major additions
+- Dock-based default desktop navigation
+- customizable pinned applications
+- redesigned Settings sidebar
+- interactive desktop widgets
+- Clock, Fastfetch, CAVA, and Media Player widgets
+- system-wide font presets
+- per-widget typography
+- new terminal commands
+- real audio-reactive CAVA visualization
+- improved media control
+- real system/browser information through Fastfetch
+- triple-click / tap Fullscreen API interaction
+
+### Important fixes
+- synchronous Settings/localStorage writes
+- corrected toggle persistence
+- Dock mode persistence across reboot
+- surgical widget updates
+- automatic reload after Snapshot "Replace All"
+- widget restoration fixes
+- improved Fastfetch detection and mobile layout
+
+### Deliberate removals
+Some systems were removed after evaluation rather than being retained simply because they existed.
+
+Removed from the current release:
+- scripted offline AI messages presented as live AI responses
+- the Portfolio application and its automatic first-boot launch
+- Weather widget
+- Notes widget
+
+The goal is not maximum feature count.
+
+The goal is a more coherent environment.
 
 ---
 
@@ -548,11 +715,11 @@ EMAG's AI layer is designed around a provider abstraction rather than a single h
 
 The system can accommodate different provider types, including:
 
-- Cloud APIs
-- Local AI
+- cloud APIs
+- local AI
 - OpenAI-compatible endpoints
-- Browser-accessible providers
-- CLI/daemon bridges
+- browser-accessible providers
+- CLI / daemon bridges
 
 The active automatic fallback chain can be configured independently from manually selectable providers.
 
@@ -570,9 +737,10 @@ EMAG includes runtime-oriented optimizations such as:
 - idle scheduling
 - centralized update loops
 - reduced-frequency background tasks
-- request serialization for AI calls
+- serialized AI requests
 - controlled agent execution cycles
 - lazy initialization of heavier runtimes
+- surgical widget updates
 
 The goal is not to pretend that a 30,000-line single-document environment is inherently optimal.
 
@@ -594,6 +762,32 @@ Never enter secrets or credentials into a public deployment unless you understan
 
 ---
 
+## Project Integrity
+
+The "v8.64" release is associated with a cryptographically signed Git history.
+
+The release commit and release tag were created using an SSH signing key and verified by GitHub.
+
+```text
+Commit
+  ↓
+SSH Signature
+  ↓
+GitHub Verified
+
+Tag
+  ↓
+SSH Signature
+  ↓
+GitHub Verified
+```
+
+This provides cryptographic provenance for the corresponding Git objects.
+
+It is intended as a technical integrity mechanism and does not, by itself, constitute legal proof of ownership.
+
+---
+
 ## Running EMAG OS
 
 ### Live
@@ -601,7 +795,7 @@ Launch the deployed environment:
 [https://mohamed-hesham-eleryan.github.io/EMAG-OS](https://mohamed-hesham-eleryan.github.io/EMAG-OS)
 
 ### Local
-The core environment can be opened directly from the HTML file.
+The core environment can be opened directly from:
 `index.html`
 
 Open it in a modern browser.
@@ -614,32 +808,18 @@ For features that depend on external APIs, browser security policies, remote run
 
 Once inside the environment:
 
-1. Create or enter a user account
-2. Let EMAG complete the boot sequence
-3. Explore the desktop
-4. Open the Terminal
-5. Type: `help`
+1. Create or enter a user account.
+2. Let EMAG complete the boot sequence.
+3. Explore the desktop.
+4. Open the Dock.
+5. Open the Terminal.
+6. Type:
+   `help`
 
-Useful keyboard shortcuts include:
+Useful commands include:
+`fastfetch`, `sysinfo`, `help`
 
-| Shortcut | Action |
-| :--- | :--- |
-| `Ctrl + 1` | EMAG Chat |
-| `Ctrl + 2` | Terminal |
-| `Ctrl + 3` | Files |
-| `Ctrl + 5` | Code Editor |
-| `Ctrl + 6` | Settings |
-
-From the terminal, you can explore the environment directly.
-
-Try:
-`neofetch`
-
-or:
-`sysinfo`
-
-or:
-`help`
+The exact availability of certain features can depend on browser capabilities, permissions, network access, and the selected configuration.
 
 ---
 
@@ -704,7 +884,7 @@ The architecture is expected to continue changing.
 
 The most important specification of EMAG OS may also be the strangest one:
 
-> It is all here.
+> **It is all here.**
 
 One document.
 
