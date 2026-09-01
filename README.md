@@ -4,7 +4,7 @@
 
 ### An AI-powered operating system simulation running inside a browser.
 
-`Single HTML File` · `30,000+ Lines` · `~1.94 MB` · `Browser-Native`
+`Single HTML File` · `~30,000 Lines` · `~1.94 MB` · `Browser-Native`
 
 <br>
 
@@ -899,6 +899,46 @@ No conventional project tree required to experience the core environment.
 That constraint is not a limitation hidden from the user.
 
 It is the experiment.
+
+---
+
+## Third-Party Software & Attribution
+
+EMAG OS incorporates and adapts several open-source libraries and components.
+
+The following projects are used within the application:
+
+| Project | License |
+| :--- | :--- |
+| [Three.js](https://threejs.org/) | MIT |
+| [Dexie.js](https://dexie.org/) | Apache-2.0 |
+| [Interact.js](https://interactjs.io/) | MIT |
+| [Marked](https://marked.js.org/) | MIT |
+| [PeerJS](https://peerjs.com/) | MIT |
+| [QRCode.js](https://github.com/davidshimjs/qrcodejs) | MIT |
+| [D3.js](https://d3js.org/) | ISC |
+| [Tone.js](https://tonejs.github.io/) | MIT |
+| [Color Thief](https://github.com/lokesh/color-thief) | MIT |
+| [CodeMirror 5](https://codemirror.net/5/) | MIT |
+| [Pyodide](https://pyodide.org/) | MPL-2.0 |
+| [Monaco Editor](https://microsoft.github.io/monaco-editor/) | MIT |
+| [React Bits](https://reactbits.dev/) | MIT + Commons Clause |
+
+React Bits components used in EMAG OS were adapted from their original React implementations for use in the project's browser-native, single-file architecture.
+
+Google Fonts are also used. Individual typefaces are distributed under their respective open-source font licenses.
+
+Full third-party attribution and licensing information is included directly in `index.html`.
+
+---
+
+## License
+
+EMAG OS is licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+
+Copyright © 2026 Mohamed Hesham Eleryan.
+
+See [`LICENSE`](LICENSE) for the complete license text.
 
 ---
 
