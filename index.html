@@ -2096,6 +2096,10 @@ const DFLT_S = {
     {id:'w_media',type:'media',x:24,y:520,w:250,h:64,visible:false,nameColor:'',accentColor:'',fontFamily:"'JetBrains Mono',monospace",glassBg:false,lastPath:''},
   ],
   grid:false,eyePhysics:true,eyeShadow:true,voice:true,wallpaper:'black',
+  // ── Requested new defaults ──────────────────
+  elegantOn:true,       // 🍵 Elegant theme ON for first-time users
+  wallEyeBurst:true,    // Eye Burst Transition FX ON by default
+  wallAutoTheme:true,   // Auto-extract theme colors on wallpaper change ON by default
   eyeGravity:0.75,eyeBounce:0.70,eyeFriction:0.965,eyeHitVol:1.0,eyePhysicsPad:30,
   // Theme colors
   themeCore:'#ff0000',themeCyan:'#00ffff',themeAmber:'#ffaa00',themeGrn:'#00ff66',
@@ -2201,7 +2205,7 @@ function applyWallpaper(key, customUrl){
     if(customUrl && !customUrl.startsWith('/')){
       wp.style.backgroundImage=`url('${customUrl}')`;
       wp.style.backgroundSize='cover';wp.style.backgroundPosition='center';
-      if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+      _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
       return;
     }
     // Priority 2: dedicated storage — IndexedDB (large) or localStorage (legacy small)
@@ -2214,7 +2218,7 @@ function applyWallpaper(key, customUrl){
           wp.style.backgroundImage = `url('${full}')`;
           wp.style.backgroundSize = 'cover';
           wp.style.backgroundPosition = 'center';
-          if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+          _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
         }
       });
     } else if (cachedFlag && cachedFlag.startsWith('data:')) {
@@ -2222,7 +2226,7 @@ function applyWallpaper(key, customUrl){
       wp.style.backgroundImage = `url('${cachedFlag}')`;
       wp.style.backgroundSize = 'cover';
       wp.style.backgroundPosition = 'center';
-      if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+      _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
     }
     // Priority 3: VFS path (async, always try for freshest content)
     const vfsPath = customUrl?.startsWith('/') ? customUrl : (getSettings().wallpaperVfsPath || '');
@@ -2237,7 +2241,7 @@ function applyWallpaper(key, customUrl){
         else if(typeof f.content==='string'){ url=f.content; }
         if(url){
           wp.style.backgroundImage=`url('${url}')`; wp.style.backgroundSize='cover'; wp.style.backgroundPosition='center';
-          if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+          _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
         }
       }).catch(()=>{});
     }
@@ -2259,7 +2263,7 @@ function applyWallpaper(key, customUrl){
   });
   // Auto-extract theme from new wallpaper (skip while Elegant is active —
   // it would silently overwrite the brown palette)
-  if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+  _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
 }
 
 function _startMatrixWall(wp){
@@ -2571,16 +2575,56 @@ function _wrApplyRingRotation(){
   if(ring) ring.style.transform = `rotateY(${_wrRotY}deg)`;
 }
 
+// ── Momentum / inertia for the ring — a fast flick (touch) or a fast
+// mouse-drag/scroll (desktop) keeps spinning and eases to a stop, instead
+// of stopping dead the instant the finger/button lifts. ──
+let _wrVelocity = 0;       // deg per frame, decays via friction
+let _wrInertiaRAF = null;
+let _wrWheelKickT = null;
+
+function _wrStopInertia(){
+  if(_wrInertiaRAF){ cancelAnimationFrame(_wrInertiaRAF); _wrInertiaRAF = null; }
+}
+function _wrStartInertia(){
+  if(Math.abs(_wrVelocity) < 0.05) return;
+  _wrStopInertia();
+  const FRICTION = 0.94; // lower = stops sooner, higher = spins longer
+  const step = () => {
+    _wrRotY += _wrVelocity;
+    _wrVelocity *= FRICTION;
+    _wrApplyRingRotation();
+    if(Math.abs(_wrVelocity) > 0.05){
+      _wrInertiaRAF = requestAnimationFrame(step);
+    } else {
+      _wrVelocity = 0;
+      _wrInertiaRAF = null;
+    }
+  };
+  _wrInertiaRAF = requestAnimationFrame(step);
+}
+// Wheel events arrive in discrete ticks — debounce a hair so a burst of
+// ticks (a real "fast scroll") accumulates into one strong spin instead of
+// each tick separately truncating the previous one's momentum.
+function _wrKickInertia(){
+  clearTimeout(_wrWheelKickT);
+  _wrWheelKickT = setTimeout(_wrStartInertia, 60);
+}
+
 function _wrInitRing(){
   if(_wrInited) return;
   _wrInited = true;
   const ring = document.getElementById('wallRing');
   if(!ring) return;
   let _wrDownEl = null;
+  let _wrLastX = 0, _wrLastT = 0;
   ring.addEventListener('pointerdown', (e)=>{
+    _wrStopInertia();
     _wrDragging = true;
     _wrDragMoved = 0;
     _wrDragStartX = e.clientX;
+    _wrLastX = e.clientX;
+    _wrLastT = performance.now();
+    _wrVelocity = 0;
     // Capture the actual card pressed here — once pointer capture is set
     // below, later pointerup/move events retarget to the capturing element
     // (the ring itself), so e.target at that point is no longer the card.
@@ -2595,6 +2639,14 @@ function _wrInitRing(){
     _wrRotY += dx * 0.35;
     _wrDragStartX = e.clientX;
     _wrApplyRingRotation();
+    // Track a smoothed velocity (deg/frame @ ~60fps) so a release mid-flick
+    // carries momentum instead of stopping dead.
+    const now = performance.now();
+    const dt = Math.max(1, now - _wrLastT);
+    const instV = (dx) / dt * 16.67;
+    _wrVelocity = _wrVelocity * 0.7 + instV * 0.3;
+    _wrLastX = e.clientX;
+    _wrLastT = now;
   });
   const endDrag = (e)=>{
     if(!_wrDragging) return;
@@ -2602,11 +2654,23 @@ function _wrInitRing(){
     ring.classList.remove('dragging');
     if(_wrDragMoved < 6 && _wrDownEl){
       _wrSelect(parseInt(_wrDownEl.dataset.idx, 10));
+    } else {
+      _wrStartInertia();
     }
     _wrDownEl = null;
   };
   ring.addEventListener('pointerup', endDrag);
   ring.addEventListener('pointercancel', endDrag);
+
+  // Desktop: mouse wheel also spins the ring (with the same momentum feel).
+  ring.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    _wrRotY += delta * 0.25;
+    _wrApplyRingRotation();
+    _wrVelocity = _wrVelocity * 0.5 + (delta * 0.25) * 0.5;
+    _wrKickInertia();
+  }, {passive:false});
 }
 
 function _wrSelect(idx){
@@ -2899,7 +2963,10 @@ async function _wallThumbSave(vfsPath, dataUrl) {
     const img = new Image();
     img.onload = async () => {
       try {
-        const W = 200, H = 112;
+        // Bumped from 200x112 @ 0.6 — was noticeably blurry. Still far short
+        // of full quality (keeps the storage/lag savings this was for) but
+        // sharp enough to actually recognize the wallpaper in the picker.
+        const W = 320, H = 180;
         const cv = document.createElement('canvas');
         cv.width = W; cv.height = H;
         const ctx = cv.getContext('2d');
@@ -2908,7 +2975,7 @@ async function _wallThumbSave(vfsPath, dataUrl) {
         const scale = Math.min(W / img.width, H / img.height);
         const dw = img.width * scale, dh = img.height * scale;
         ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-        const thumb = cv.toDataURL('image/jpeg', 0.6);
+        const thumb = cv.toDataURL('image/jpeg', 0.78);
         // Store in IndexedDB — no quota issues
         try { await db.wallpapers.put({ key: _wallThumbKey(vfsPath), data: thumb }); } catch(e) {
           // fallback: localStorage (thumbnail is small, ~8KB)
@@ -29237,8 +29304,15 @@ app.listen(PORT, '127.0.0.1', () => {
   window.DAEMON_ACTIVE    = false;
   window.EmagDaemonEngine = { ping, startLoop, generateScript };
 
-  // Boot — start health loop after 6s (after onboarding settles)
-  setTimeout(startLoop, 6000);
+  // Boot — start health loop after 6s (after onboarding settles).
+  // IMPORTANT: only auto-arm this for sessions that have already activated
+  // Domain Node at least once (LS_ACTIVE==='1'). Pinging localhost on every
+  // page load for every visitor — including people who've never touched
+  // this feature — is what makes Chrome/Brave's "wants to access other
+  // apps and services on this device" (Local Network Access) prompt show
+  // up unprompted on first open. Manual activation (Ryōiki Tenkai button)
+  // still pings directly and sets LS_ACTIVE itself, so that flow is unaffected.
+  setTimeout(()=>{ if(localStorage.getItem(LS_ACTIVE)==='1') startLoop(); }, 6000);
 
   return window.EmagDaemonEngine;
 })();
@@ -32376,9 +32450,6 @@ document.addEventListener('keydown',e=>{
 // clicks to be both close in TIME and close in POSITION, so it behaves like
 // a real double-click instead of firing from two unrelated taps.
 // ═══════════════════════════════════════════════
-let _dblClickLast = null; // {t, x, y} of the previous eligible click
-const _DBL_CLICK_MS = 400;   // native double-click speed
-const _DBL_CLICK_PX = 24;    // generous for touch; still tight enough to avoid accidents
 function _tripleClickEligible(t){
   if(!t||!t.closest) return false;
   // Denylist real interactive controls + actual window content (so text selection inside
@@ -32389,17 +32460,21 @@ function _tripleClickEligible(t){
   if(t.closest('.wbtn,input,textarea,button,select,[contenteditable="true"],.icon,.dock-item,.tba,.smapp,.ctxi,a,.wrs,.wbody,.widget-del,.widget-rs,#eyeCanvas'))return false;
   return true;
 }
-document.addEventListener('click',e=>{
-  if(!_tripleClickEligible(e.target)){_dblClickLast=null;return;}
-  const now=Date.now(), x=e.clientX, y=e.clientY;
-  if(_dblClickLast
-     && (now-_dblClickLast.t)<=_DBL_CLICK_MS
-     && Math.hypot(x-_dblClickLast.x, y-_dblClickLast.y)<=_DBL_CLICK_PX){
-    _dblClickLast=null;
-    toggleFullscreen();
-  } else {
-    _dblClickLast={t:now,x,y};
-  }
+// Was a hand-rolled "pair up any two clicks within 400ms/24px" detector.
+// That's too permissive on touch — two completely unrelated taps in
+// different UI zones can land inside that window by coincidence and
+// silently call requestFullscreen(), which is exactly what produced
+// unexplained fullscreen enter/exit while the person wasn't even
+// interacting with this app. The native 'dblclick' event only fires for
+// two verified clicks on the same target in quick succession, so it
+// can't be tricked by two unrelated taps — use it instead, with a small
+// guard so it still respects the same denylist and only fires when this
+// tab is actually the focused/visible one (a background tab should never
+// be able to toggle its own fullscreen state).
+document.addEventListener('dblclick', e=>{
+  if(!_tripleClickEligible(e.target)) return;
+  if(document.hidden || !document.hasFocus()) return;
+  toggleFullscreen();
 });
 
 // ═══════════════════════════════════════════════
