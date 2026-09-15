@@ -2090,16 +2090,24 @@ const DFLT_S = {
   workspaceCount:3,
   activeWorkspace:0,
   widgets:[
-    {id:'w_clock',type:'clock',x:24,y:24,w:230,h:118,visible:true,dayColor:'',dateColor:'',timeColor:'',dayScale:1,dateScale:0.62,timeScale:0.72,showHijri:true,align:'left',dayFontFamily:'',dateTimeFontFamily:'',bgOpacity:0,glassBg:false,panelEnabled:true,muteAll:false,mutedTypes:[]},
+    // Default position: top-center of the screen (computed from the actual
+    // viewport width at first load — still fully draggable/editable after).
+    {id:'w_clock',type:'clock',x:Math.max(4,Math.round((window.innerWidth||360)/2-115)),y:14,w:230,h:118,visible:true,dayColor:'',dateColor:'',timeColor:'',dayScale:1.35,dateScale:0.62,timeScale:0.72,showHijri:true,align:'center',dayFontFamily:"'Orbitron',sans-serif",dateTimeFontFamily:'',bgOpacity:0,glassBg:false,panelEnabled:true,muteAll:false,mutedTypes:[]},
     {id:'w_fastfetch',type:'fastfetch',x:24,y:158,w:330,h:250,visible:true,scale:1,fontFamily:'',fields:['os','host','browser','uptime','resolution','cpu','memory','storage','locale','online','theme','fps'],glassBg:false},
     {id:'w_cava',type:'cava',x:24,y:424,w:250,h:90,visible:false,barColor:'',barColor2:'',bars:22,gap:2,mirror:true,rounded:true,glassBg:false},
     {id:'w_media',type:'media',x:24,y:520,w:250,h:64,visible:false,nameColor:'',accentColor:'',fontFamily:"'JetBrains Mono',monospace",glassBg:false,lastPath:''},
   ],
   grid:false,eyePhysics:true,eyeShadow:true,voice:true,wallpaper:'black',
+  // ── Requested new defaults ──────────────────
+  elegantOn:true,       // 🍵 Elegant theme ON for first-time users
+  wallEyeBurst:true,    // Eye Burst Transition FX ON by default
+  wallAutoTheme:true,   // Auto-extract theme colors on wallpaper change ON by default
   eyeGravity:0.75,eyeBounce:0.70,eyeFriction:0.965,eyeHitVol:1.0,eyePhysicsPad:30,
-  // Theme colors
-  themeCore:'#ff0000',themeCyan:'#00ffff',themeAmber:'#ffaa00',themeGrn:'#00ff66',
-  themeBg:'#050505',themeBg2:'#0a0002',themeBorder:'#330000',themeText:'#a0a0a0',themeText2:'#cccccc',
+  // Theme colors — match the Elegant palette since elegantOn is the
+  // default for first-time users (see ELEGANT_THEME_COLORS below).
+  // These are still fully user-editable from Settings at any time.
+  themeCore:'#6b4426',themeCyan:'#8a6a3f',themeAmber:'#b98a3e',themeGrn:'#7a8f52',
+  themeBg:'#e8d9b8',themeBg2:'#d8c39c',themeBorder:'#c2a877',themeText:'#4a3620',themeText2:'#4a3620',
   // AI Identity
   sysName:'EMAG OS',aiName:'EMAG',aiSubtitle:'SENTIENT CORE v8.11',
   displayName:'',
@@ -2201,7 +2209,7 @@ function applyWallpaper(key, customUrl){
     if(customUrl && !customUrl.startsWith('/')){
       wp.style.backgroundImage=`url('${customUrl}')`;
       wp.style.backgroundSize='cover';wp.style.backgroundPosition='center';
-      if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+      _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
       return;
     }
     // Priority 2: dedicated storage — IndexedDB (large) or localStorage (legacy small)
@@ -2214,7 +2222,7 @@ function applyWallpaper(key, customUrl){
           wp.style.backgroundImage = `url('${full}')`;
           wp.style.backgroundSize = 'cover';
           wp.style.backgroundPosition = 'center';
-          if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+          _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
         }
       });
     } else if (cachedFlag && cachedFlag.startsWith('data:')) {
@@ -2222,7 +2230,7 @@ function applyWallpaper(key, customUrl){
       wp.style.backgroundImage = `url('${cachedFlag}')`;
       wp.style.backgroundSize = 'cover';
       wp.style.backgroundPosition = 'center';
-      if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+      _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
     }
     // Priority 3: VFS path (async, always try for freshest content)
     const vfsPath = customUrl?.startsWith('/') ? customUrl : (getSettings().wallpaperVfsPath || '');
@@ -2237,7 +2245,7 @@ function applyWallpaper(key, customUrl){
         else if(typeof f.content==='string'){ url=f.content; }
         if(url){
           wp.style.backgroundImage=`url('${url}')`; wp.style.backgroundSize='cover'; wp.style.backgroundPosition='center';
-          if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+          _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
         }
       }).catch(()=>{});
     }
@@ -2259,7 +2267,7 @@ function applyWallpaper(key, customUrl){
   });
   // Auto-extract theme from new wallpaper (skip while Elegant is active —
   // it would silently overwrite the brown palette)
-  if (!document.body.classList.contains('theme-elegant')) _maybeAutoExtract();
+  _maybeAutoExtract(); // now runs even during Elegant — extraction happens immediately in the background instead of being deferred until the user leaves Elegant
 }
 
 function _startMatrixWall(wp){
@@ -2571,16 +2579,56 @@ function _wrApplyRingRotation(){
   if(ring) ring.style.transform = `rotateY(${_wrRotY}deg)`;
 }
 
+// ── Momentum / inertia for the ring — a fast flick (touch) or a fast
+// mouse-drag/scroll (desktop) keeps spinning and eases to a stop, instead
+// of stopping dead the instant the finger/button lifts. ──
+let _wrVelocity = 0;       // deg per frame, decays via friction
+let _wrInertiaRAF = null;
+let _wrWheelKickT = null;
+
+function _wrStopInertia(){
+  if(_wrInertiaRAF){ cancelAnimationFrame(_wrInertiaRAF); _wrInertiaRAF = null; }
+}
+function _wrStartInertia(){
+  if(Math.abs(_wrVelocity) < 0.05) return;
+  _wrStopInertia();
+  const FRICTION = 0.94; // lower = stops sooner, higher = spins longer
+  const step = () => {
+    _wrRotY += _wrVelocity;
+    _wrVelocity *= FRICTION;
+    _wrApplyRingRotation();
+    if(Math.abs(_wrVelocity) > 0.05){
+      _wrInertiaRAF = requestAnimationFrame(step);
+    } else {
+      _wrVelocity = 0;
+      _wrInertiaRAF = null;
+    }
+  };
+  _wrInertiaRAF = requestAnimationFrame(step);
+}
+// Wheel events arrive in discrete ticks — debounce a hair so a burst of
+// ticks (a real "fast scroll") accumulates into one strong spin instead of
+// each tick separately truncating the previous one's momentum.
+function _wrKickInertia(){
+  clearTimeout(_wrWheelKickT);
+  _wrWheelKickT = setTimeout(_wrStartInertia, 60);
+}
+
 function _wrInitRing(){
   if(_wrInited) return;
   _wrInited = true;
   const ring = document.getElementById('wallRing');
   if(!ring) return;
   let _wrDownEl = null;
+  let _wrLastX = 0, _wrLastT = 0;
   ring.addEventListener('pointerdown', (e)=>{
+    _wrStopInertia();
     _wrDragging = true;
     _wrDragMoved = 0;
     _wrDragStartX = e.clientX;
+    _wrLastX = e.clientX;
+    _wrLastT = performance.now();
+    _wrVelocity = 0;
     // Capture the actual card pressed here — once pointer capture is set
     // below, later pointerup/move events retarget to the capturing element
     // (the ring itself), so e.target at that point is no longer the card.
@@ -2595,6 +2643,14 @@ function _wrInitRing(){
     _wrRotY += dx * 0.35;
     _wrDragStartX = e.clientX;
     _wrApplyRingRotation();
+    // Track a smoothed velocity (deg/frame @ ~60fps) so a release mid-flick
+    // carries momentum instead of stopping dead.
+    const now = performance.now();
+    const dt = Math.max(1, now - _wrLastT);
+    const instV = (dx) / dt * 16.67;
+    _wrVelocity = _wrVelocity * 0.7 + instV * 0.3;
+    _wrLastX = e.clientX;
+    _wrLastT = now;
   });
   const endDrag = (e)=>{
     if(!_wrDragging) return;
@@ -2602,11 +2658,23 @@ function _wrInitRing(){
     ring.classList.remove('dragging');
     if(_wrDragMoved < 6 && _wrDownEl){
       _wrSelect(parseInt(_wrDownEl.dataset.idx, 10));
+    } else {
+      _wrStartInertia();
     }
     _wrDownEl = null;
   };
   ring.addEventListener('pointerup', endDrag);
   ring.addEventListener('pointercancel', endDrag);
+
+  // Desktop: mouse wheel also spins the ring (with the same momentum feel).
+  ring.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    _wrRotY += delta * 0.25;
+    _wrApplyRingRotation();
+    _wrVelocity = _wrVelocity * 0.5 + (delta * 0.25) * 0.5;
+    _wrKickInertia();
+  }, {passive:false});
 }
 
 function _wrSelect(idx){
@@ -2720,6 +2788,15 @@ const ELEGANT_THEME_COLORS = {
   themeBg:'#e8d9b8', themeBg2:'#d8c39c', themeBorder:'#c2a877',
   themeText:'#4a3620', themeText2:'#4a3620'
 };
+// The original cyberpunk red palette — kept as its own constant since
+// DFLT_S's theme* fields now hold the Elegant palette (Elegant is the
+// default theme for first-time users). Used as the "plain default" fallback
+// when turning Elegant off with no valid color snapshot to restore.
+const CLASSIC_THEME_COLORS = {
+  themeCore:'#ff0000', themeCyan:'#00ffff', themeAmber:'#ffaa00', themeGrn:'#00ff66',
+  themeBg:'#050505', themeBg2:'#0a0002', themeBorder:'#330000',
+  themeText:'#a0a0a0', themeText2:'#cccccc'
+};
 
 // Apply the body class + brown palette. Does NOT touch settings/backup —
 // used both by the toggle and by the silent boot-time restore.
@@ -2784,9 +2861,12 @@ function toggleElegantTheme(){
       Object.assign(s, prev); // merge immediately — settings save below must reflect it
     } else if (!s.wallAutoTheme) {
       // No reliable snapshot for the current wallpaper and auto-extract is
-      // off — reset to the plain default palette rather than keep either the
-      // old wallpaper's colors or Elegant's tea palette.
-      Object.assign(s, {themeCore:DFLT_S.themeCore,themeCyan:DFLT_S.themeCyan,themeAmber:DFLT_S.themeAmber,themeGrn:DFLT_S.themeGrn,themeBg:DFLT_S.themeBg,themeBg2:DFLT_S.themeBg2,themeBorder:DFLT_S.themeBorder,themeText:DFLT_S.themeText,themeText2:DFLT_S.themeText2});
+      // off — reset to the plain (non-Elegant) default palette rather than
+      // keep either the old wallpaper's colors or Elegant's tea palette.
+      // NOTE: DFLT_S's theme* fields are the Elegant palette (elegantOn is
+      // the default for first-time users), so the classic cyberpunk fallback
+      // lives in its own constant instead.
+      Object.assign(s, CLASSIC_THEME_COLORS);
     }
     // else: wallpaperChanged && wallAutoTheme on — leave Elegant's colors in
     // place for one frame; the fresh applyWallpaperTheme() call below (after
@@ -2899,7 +2979,10 @@ async function _wallThumbSave(vfsPath, dataUrl) {
     const img = new Image();
     img.onload = async () => {
       try {
-        const W = 200, H = 112;
+        // Bumped from 200x112 @ 0.6 — was noticeably blurry. Still far short
+        // of full quality (keeps the storage/lag savings this was for) but
+        // sharp enough to actually recognize the wallpaper in the picker.
+        const W = 320, H = 180;
         const cv = document.createElement('canvas');
         cv.width = W; cv.height = H;
         const ctx = cv.getContext('2d');
@@ -2908,7 +2991,7 @@ async function _wallThumbSave(vfsPath, dataUrl) {
         const scale = Math.min(W / img.width, H / img.height);
         const dw = img.width * scale, dh = img.height * scale;
         ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-        const thumb = cv.toDataURL('image/jpeg', 0.6);
+        const thumb = cv.toDataURL('image/jpeg', 0.78);
         // Store in IndexedDB — no quota issues
         try { await db.wallpapers.put({ key: _wallThumbKey(vfsPath), data: thumb }); } catch(e) {
           // fallback: localStorage (thumbnail is small, ~8KB)
@@ -3212,7 +3295,28 @@ async function applyWallpaperTheme(forceDark, silent) {
   } catch(e) { if(!silent) showNotif('Extract failed: '+e.message,'red'); throw e; }
 }
 
-function _maybeAutoExtract() { if(getSettings().wallAutoTheme) setTimeout(()=>applyWallpaperTheme(undefined,true),400); }
+// 400ms wasn't reliably enough time for the new wallpaper (decode of a large
+// data URL, IndexedDB/VFS lookup, etc.) to actually be in place before this
+// fires — so extraction would frequently sample the OLD wallpaper's pixels
+// instead of the new one. Longer delay gives the new wallpaper time to
+// actually land first.
+// Also: this used to fire unconditionally — including on plain boot, when
+// applyWallpaper() just re-renders the ALREADY-SAVED wallpaper and nothing
+// actually changed. With wallAutoTheme on by default, that silently
+// re-extracted and overwrote the Elegant tea palette (or any custom colors)
+// a second or so after every single boot. Guard checked inside the timeout
+// (not at schedule time) since Elegant's body class is only added a few ms
+// AFTER this is scheduled during boot — checking early would always miss it.
+// Elegant exiting with a wallpaper that genuinely changed while it was on is
+// still handled correctly: toggleElegantTheme()'s OFF path calls
+// applyWallpaperTheme() directly at that point, independent of this guard.
+function _maybeAutoExtract() {
+  if(!getSettings().wallAutoTheme) return;
+  setTimeout(()=>{
+    if (document.body.classList.contains('theme-elegant')) return; // never clobber the Elegant palette
+    applyWallpaperTheme(undefined,true);
+  },1100);
+}
 
 function detectSystemColorScheme() { return (window.matchMedia?.('(prefers-color-scheme: dark)').matches)?'dark':'light'; }
 
@@ -8713,7 +8817,7 @@ async function _lastGaspAttempt() {
       if(p.type==='poll'){
         const msgs=[{role:'system',content:gaspSys},{role:'user',content:'Servers are dead.'}];
         const r=await fetch('https://text.pollinations.ai/openai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:p.model||'openai',messages:msgs,seed:42,private:true})});
-        if(r.ok){const d=await r.json();const t=d.choices?.[0]?.message?.content||'';if(t.length>2)return t;}
+        if(r.ok){const d=await r.json();const t=d.choices?.[0]?.message?.content||'';if(t.length>2&&!_isPollBudgetError(t))return t;}
       }
       if(p.type==='zuki'){
         const msgs=[{role:'system',content:gaspSys},{role:'user',content:'Servers are dead.'}];
@@ -8731,6 +8835,14 @@ async function _lastGaspAttempt() {
 // queue, so a new request is never dispatched until the previous one has
 // actually returned (or failed). This wraps the real implementation below.
 let _aiQueueTail = Promise.resolve();
+// Pollinations returns its "key budget reached" message as normal 200-OK
+// text/JSON content, not an HTTP error status — so without catching it here
+// it looks exactly like a real reply and gets shown everywhere a normal AI
+// message would (chat log, speech bubble, TTS, eye musings...). Detect it
+// so the provider chain treats it as a failure and moves on instead.
+function _isPollBudgetError(t) {
+  return /reached its budget|reached the budget|raise the key budget|enter\.pollinations\.ai|ref=agent_key_budget/i.test(t||'');
+}
 async function runAI(prompt, signal, model='auto', customSys, isSystem=false){
   // Keep the existing fast-skip behavior: a background/system call still
   // bails out immediately (rather than queueing) if the user is mid-request,
@@ -8815,8 +8927,14 @@ async function _runAICore(prompt,signal,model='auto',customSys,isSystem=false){
         const r=await _smartFetch('https://text.pollinations.ai/openai',{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:p.model||'openai',messages:msgs,seed:Math.floor(Math.random()*9999),private:true})});
         if(r.status===413) throw new Error('HTTP 413 PAYLOAD_TOO_LARGE');
         if(r.status===500) throw new Error('HTTP 500 SERVER_ERROR');
-        if(r.ok){const d=await r.json();const t=d.choices?.[0]?.message?.content||'';if(t.length>1){aiLog('recv',`[${key}] ✓ POST L${degradeLevel} ${t.length}c`);_provMarkOk(key);return t;}}
-      }catch(e2){ if(e2.name==='AbortError'&&signal?.aborted)throw e2; }
+        if(r.ok){const d=await r.json();const t=d.choices?.[0]?.message?.content||'';if(t.length>1){
+          // Pollinations returns this as normal 200 text (not an HTTP error
+          // status), so without this check it gets treated as a real AI
+          // reply and spammed into chat/bubble/TTS everywhere.
+          if(_isPollBudgetError(t)) throw new Error('quota: Pollinations key budget reached');
+          aiLog('recv',`[${key}] ✓ POST L${degradeLevel} ${t.length}c`);_provMarkOk(key);return t;
+        }}
+      }catch(e2){ if(e2.name==='AbortError'&&signal?.aborted)throw e2; if(/pollinations key budget/i.test(e2.message))throw e2; }
       // GET fallback
       const _recentCtx=histMsgs.slice(-3).map(m=>(m.role==='assistant'?'Assistant':'User')+': '+m.content.replace(/\n/g,' ').slice(0,80)).join('\n');
       const ctx=(pSys.slice(0,200)+'\n'+_recentCtx+'\nUser: '+prompt+'\nAssistant:').slice(0,900);
@@ -8825,6 +8943,7 @@ async function _runAICore(prompt,signal,model='auto',customSys,isSystem=false){
       let t=await r2.text();
       // Filter Vercel deployment errors masquerading as 200 responses
       if(t.includes('deployment could not be found')||t.includes('"code":"404"')||t.includes('VERCEL')||t.includes('vercel')){throw new Error('Pollinations endpoint unavailable');}
+      if(_isPollBudgetError(t)) throw new Error('quota: Pollinations key budget reached');
       t=t.replace(/\{"role":"assistant","reasoning_content"[\s\S]*?\}/g,'').replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/^(User|Assistant|System):\s+/gm,'').trim();
       if(!t||t.length<2)throw new Error('empty');
       aiLog('recv',`[${key}] ✓ GET L${degradeLevel} ${t.length}c`);_provMarkOk(key);return t;
@@ -29237,8 +29356,15 @@ app.listen(PORT, '127.0.0.1', () => {
   window.DAEMON_ACTIVE    = false;
   window.EmagDaemonEngine = { ping, startLoop, generateScript };
 
-  // Boot — start health loop after 6s (after onboarding settles)
-  setTimeout(startLoop, 6000);
+  // Boot — start health loop after 6s (after onboarding settles).
+  // IMPORTANT: only auto-arm this for sessions that have already activated
+  // Domain Node at least once (LS_ACTIVE==='1'). Pinging localhost on every
+  // page load for every visitor — including people who've never touched
+  // this feature — is what makes Chrome/Brave's "wants to access other
+  // apps and services on this device" (Local Network Access) prompt show
+  // up unprompted on first open. Manual activation (Ryōiki Tenkai button)
+  // still pings directly and sets LS_ACTIVE itself, so that flow is unaffected.
+  setTimeout(()=>{ if(localStorage.getItem(LS_ACTIVE)==='1') startLoop(); }, 6000);
 
   return window.EmagDaemonEngine;
 })();
@@ -32376,9 +32502,6 @@ document.addEventListener('keydown',e=>{
 // clicks to be both close in TIME and close in POSITION, so it behaves like
 // a real double-click instead of firing from two unrelated taps.
 // ═══════════════════════════════════════════════
-let _dblClickLast = null; // {t, x, y} of the previous eligible click
-const _DBL_CLICK_MS = 400;   // native double-click speed
-const _DBL_CLICK_PX = 24;    // generous for touch; still tight enough to avoid accidents
 function _tripleClickEligible(t){
   if(!t||!t.closest) return false;
   // Denylist real interactive controls + actual window content (so text selection inside
@@ -32389,17 +32512,21 @@ function _tripleClickEligible(t){
   if(t.closest('.wbtn,input,textarea,button,select,[contenteditable="true"],.icon,.dock-item,.tba,.smapp,.ctxi,a,.wrs,.wbody,.widget-del,.widget-rs,#eyeCanvas'))return false;
   return true;
 }
-document.addEventListener('click',e=>{
-  if(!_tripleClickEligible(e.target)){_dblClickLast=null;return;}
-  const now=Date.now(), x=e.clientX, y=e.clientY;
-  if(_dblClickLast
-     && (now-_dblClickLast.t)<=_DBL_CLICK_MS
-     && Math.hypot(x-_dblClickLast.x, y-_dblClickLast.y)<=_DBL_CLICK_PX){
-    _dblClickLast=null;
-    toggleFullscreen();
-  } else {
-    _dblClickLast={t:now,x,y};
-  }
+// Was a hand-rolled "pair up any two clicks within 400ms/24px" detector.
+// That's too permissive on touch — two completely unrelated taps in
+// different UI zones can land inside that window by coincidence and
+// silently call requestFullscreen(), which is exactly what produced
+// unexplained fullscreen enter/exit while the person wasn't even
+// interacting with this app. The native 'dblclick' event only fires for
+// two verified clicks on the same target in quick succession, so it
+// can't be tricked by two unrelated taps — use it instead, with a small
+// guard so it still respects the same denylist and only fires when this
+// tab is actually the focused/visible one (a background tab should never
+// be able to toggle its own fullscreen state).
+document.addEventListener('dblclick', e=>{
+  if(!_tripleClickEligible(e.target)) return;
+  if(document.hidden || !document.hasFocus()) return;
+  toggleFullscreen();
 });
 
 // ═══════════════════════════════════════════════
